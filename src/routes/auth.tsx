@@ -3,7 +3,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -63,20 +62,6 @@ function AuthPage() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const google = async () => {
-    setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setBusy(false);
-      toast.error("Não foi possível entrar com o Google.");
-      return;
-    }
-    if (result.redirected) return;
-    navigate({ to: "/agendar", replace: true });
   };
 
   return (
@@ -140,18 +125,6 @@ function AuthPage() {
           {mode === "login" ? "Entrar" : "Cadastrar"}
         </button>
       </form>
-
-      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
-      </div>
-
-      <button
-        onClick={google}
-        disabled={busy}
-        className="h-12 w-full rounded-xl border border-border bg-card text-sm font-medium text-foreground disabled:opacity-60"
-      >
-        Continuar com Google
-      </button>
 
       <button
         onClick={() => setMode(mode === "login" ? "signup" : "login")}
