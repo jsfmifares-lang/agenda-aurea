@@ -46,11 +46,16 @@ function AuthPage() {
   useEffect(() => {
     if (mode !== "reset") return;
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session?.user) setIsRecovery(true);
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (active && session?.user) setIsRecovery(true);
+      if (event === "SIGNED_OUT") setIsRecovery(false);
+    });
+    supabase.auth.getSession().then(({ data: sd }) => {
+      if (active && sd.session?.user) setIsRecovery(true);
     });
     return () => {
       active = false;
+      data.subscription.unsubscribe();
     };
   }, [mode]);
 
