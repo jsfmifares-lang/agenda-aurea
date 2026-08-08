@@ -1,0 +1,26 @@
+{
+  "name": "Agenda Aurea — Agendamento de Salão",
+  "short_name": "Agenda Aurea",
+  "description": "Agende horários no salão e receba a confirmação pelo WhatsApp.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#221c14",
+  "theme_color": "#221c14",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/images/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
