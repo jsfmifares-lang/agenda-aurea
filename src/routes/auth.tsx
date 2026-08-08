@@ -1,12 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+type AuthMode = "login" | "signup" | "reset";
+
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
-    modo: search['modo'] === "cadastro" ? ("cadastro" as const) : ("login" as const),
+    modo:
+      search['modo'] === "cadastro"
+        ? ("cadastro" as const)
+        : search['modo'] === "recuperar"
+          ? ("recuperar" as const)
+          : ("login" as const),
   }),
   head: () => ({
     meta: [
@@ -25,14 +32,27 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { modo } = Route.useSearch();
-  const [mode, setMode] = useState<"login" | "signup">(
-    modo === "cadastro" ? "signup" : "login",
+  const [mode, setMode] = useState<AuthMode>(
+    modo === "cadastro" ? "signup" : modo === "recuperar" ? "reset" : "login",
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "reset") return;
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session?.user) setIsRecovery(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [mode]);
 
   const inputClass =
     "h-12 w-full rounded-xl border border-input bg-card px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary";
@@ -52,17 +72,44 @@ function AuthPage() {
         });
         if (error) throw error;
         toast.success("Conta criada! Bem-vindo(a).");
-      } else {
+        navigate({ to: "/agendar", replace: true });
+        return;
+      }
+
+      if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        navigate({ to: "/agendar", replace: true });
+        return;
       }
-      navigate({ to: "/agendar", replace: true });
+
+      if (isRecovery) {
+        if (password.length < 6) {
+          throw new Error("A nova senha precisa ter pelo menos 6 caracteres.");
+        }
+        if (password !== confirmPassword) {
+          throw new Error("As senhas não conferem.");
+        }
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        toast.success("Senha atualizada! Faça login com a nova senha.");
+        navigate({ to: "/auth", search: { modo: "login" }, replace: true });
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?modo=recuperar`,
+      });
+      if (error) throw error;
+      toast.success("Enviamos um link de recuperação para o seu e-mail.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível continuar.");
     } finally {
       setBusy(false);
     }
   };
+
+  const buttonLabel = mode === "login" ? "Entrar" : mode === "signup" ? "Cadastrar" : isRecovery ? "Salvar nova senha" : "Enviar link de recuperação";
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-lg px-6 pb-12 pt-10">
@@ -71,12 +118,16 @@ function AuthPage() {
       </Link>
 
       <h1 className="mt-8 text-3xl font-semibold text-gradient-gold">
-        {mode === "login" ? "Bem-vindo de volta" : "Criar conta"}
+        {mode === "login" ? "Bem-vindo de volta" : mode === "signup" ? "Criar conta" : isRecovery ? "Definir nova senha" : "Recuperar senha"}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {mode === "login"
           ? "Entre para escolher seu horário."
-          : "O primeiro cadastro do app se torna o cabeleireiro."}
+          : mode === "signup"
+            ? "O primeiro cadastro do app se torna o cabeleireiro."
+            : isRecovery
+              ? "Escolha uma nova senha para a sua conta."
+              : "Enviaremos um link no seu e-mail para criar uma nova senha."}
       </p>
 
       <form onSubmit={submit} className="mt-8 space-y-3">
@@ -99,30 +150,59 @@ function AuthPage() {
             />
           </>
         ) : null}
-        <input
-          className={inputClass}
-          type="email"
-          placeholder="E-mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          className={inputClass}
-          type="password"
-          placeholder="Senha"
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+
+        {!(mode === "reset" && isRecovery) ? (
+          <input
+            className={inputClass}
+            type="email"
+            placeholder="E-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        ) : null}
+
+        {mode !== "reset" || isRecovery ? (
+          <input
+            className={inputClass}
+            type="password"
+            placeholder={mode === "reset" ? "Nova senha" : "Senha"}
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        ) : null}
+
+        {mode === "reset" && isRecovery ? (
+          <input
+            className={inputClass}
+            type="password"
+            placeholder="Confirmar nova senha"
+            minLength={6}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        ) : null}
+
+        {mode === "login" ? (
+          <button
+            type="button"
+            onClick={() => setMode("reset")}
+            className="block w-full text-right text-sm text-muted-foreground hover:text-primary"
+          >
+            Esqueci minha senha
+          </button>
+        ) : null}
+
         <button
           type="submit"
           disabled={busy}
           className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground shadow-gold disabled:opacity-60"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-          {mode === "login" ? "Entrar" : "Cadastrar"}
+          {buttonLabel}
         </button>
       </form>
 
@@ -136,7 +216,7 @@ function AuthPage() {
           </>
         ) : (
           <>
-            Já tem conta? <span className="text-primary">Entrar</span>
+            Já lembrei minha senha. <span className="text-primary">Entrar</span>
           </>
         )}
       </button>
