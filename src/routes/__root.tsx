@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 function NotFoundComponent() {
   return (
@@ -139,7 +140,17 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        void router.navigate({ to: "/auth", search: { modo: "recuperar" }, replace: true });
+        return;
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
@@ -152,6 +163,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position="top-center" richColors />
+      <InstallPrompt />
     </QueryClientProvider>
 
   );

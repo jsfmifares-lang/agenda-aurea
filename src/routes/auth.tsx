@@ -1,10 +1,48 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type AuthMode = "login" | "signup" | "reset";
+
+const inputClass =
+  "h-12 w-full rounded-xl border border-input bg-card px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary";
+
+function PasswordInput({
+  placeholder,
+  value,
+  onChange,
+  required,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        className={`${inputClass} pr-12`}
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        minLength={6}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      >
+        {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+      </button>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -59,14 +97,16 @@ function AuthPage() {
     };
   }, [mode]);
 
-  const inputClass =
-    "h-12 w-full rounded-xl border border-input bg-card px-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary";
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (e: React.FormEvent) => {    e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
+        if (password.length < 6) {
+          throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+        }
+        if (password !== confirmPassword) {
+          throw new Error("As senhas não conferem.");
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -168,25 +208,28 @@ function AuthPage() {
         ) : null}
 
         {mode !== "reset" || isRecovery ? (
-          <input
-            className={inputClass}
-            type="password"
+          <PasswordInput
             placeholder={mode === "reset" ? "Nova senha" : "Senha"}
-            minLength={6}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             required
           />
         ) : null}
 
         {mode === "reset" && isRecovery ? (
-          <input
-            className={inputClass}
-            type="password"
+          <PasswordInput
             placeholder="Confirmar nova senha"
-            minLength={6}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={setConfirmPassword}
+            required
+          />
+        ) : null}
+
+        {mode === "signup" ? (
+          <PasswordInput
+            placeholder="Confirmar senha"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
             required
           />
         ) : null}

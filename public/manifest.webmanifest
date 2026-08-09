@@ -12,13 +12,13 @@
   "icons": [
     {
       "src": "/images/app-icon.png",
-      "sizes": "512x512",
+      "sizes": "816x816",
       "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "/images/app-icon.png",
-      "sizes": "512x512",
+      "sizes": "816x816",
       "type": "image/png",
       "purpose": "maskable"
     }
