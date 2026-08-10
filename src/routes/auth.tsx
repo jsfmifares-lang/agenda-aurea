@@ -90,18 +90,26 @@ function AuthPage() {
     if (!accessToken || !refreshToken) return;
     let active = true;
     (async () => {
+      let step = "getSession";
       try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (error || !data.session?.user) {
-          throw error ?? new Error("Sessão inválida retornada pelo Google.");
+        let session = (await supabase.auth.getSession()).data.session;
+        if (!session?.user) {
+          step = "setSession";
+          console.log("[auth] OAuth: tentando setSession com token", accessToken.slice(0, 20) + "...");
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error || !data.session?.user) {
+            throw error ?? new Error("Sessão inválida retornada pelo Google.");
+          }
+          session = data.session;
         }
+        step = "roles";
         const { data: roles, error: rolesErr } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", data.session.user.id);
+          .eq("user_id", session.user.id);
         if (rolesErr) throw rolesErr;
         const isBarber = (roles ?? []).some((r) => r.role === "barber");
         if (active) {
@@ -109,9 +117,13 @@ function AuthPage() {
           navigate({ to: isBarber ? "/painel" : "/agendar", replace: true });
         }
       } catch (e) {
-        const msg = e instanceof Error ? e.message : JSON.stringify(e);
-        console.error("[auth] Falha ao processar retorno do Google:", e);
-        if (active) setOAuthError(msg);
+        const err = e as Error & { code?: unknown; status?: unknown };
+        console.error(`[auth] Falha em "${step}":`, e);
+        const details =
+          (typeof err?.status !== "undefined" ? ` (status: ${err.status})` : "") +
+          (typeof err?.code !== "undefined" ? ` (code: ${err.code})` : "");
+        const msg = err?.message ?? JSON.stringify(e);
+        if (active) setOAuthError(`[${step}] ${msg}${details}`);
       }
     })();
     return () => {
