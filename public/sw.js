@@ -1,4 +1,4 @@
-const CACHE = "agenda-aurea-v1";
+const CACHE = "agenda-aurea-v2";
 const STATIC = ["/", "/images/app-icon.png", "/favicon.png"];
 
 self.addEventListener("install", (e) => {

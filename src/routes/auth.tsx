@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type AuthMode = "login" | "signup" | "reset";
@@ -52,6 +52,7 @@ export const Route = createFileRoute("/auth")({
         : search['modo'] === "recuperar"
           ? ("recuperar" as const)
           : ("login" as const),
+    err: typeof search['err'] === "string" ? search['err'] : undefined,
   }),
   head: () => ({
     meta: [
@@ -69,7 +70,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { modo } = Route.useSearch();
+  const { modo, err } = Route.useSearch();
   const [mode, setMode] = useState<AuthMode>(
     modo === "cadastro" ? "signup" : modo === "recuperar" ? "reset" : "login",
   );
@@ -80,6 +81,43 @@ function AuthPage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
+  const [oauthError, setOAuthError] = useState<string | null>(err ?? null);
+
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (!accessToken || !refreshToken) return;
+    let active = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error || !data.session?.user) {
+          throw error ?? new Error("Sessão inválida retornada pelo Google.");
+        }
+        const { data: roles, error: rolesErr } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.session.user.id);
+        if (rolesErr) throw rolesErr;
+        const isBarber = (roles ?? []).some((r) => r.role === "barber");
+        if (active) {
+          toast.success(isBarber ? "Bem-vindo(a), barbeiro(a)!" : "Bem-vindo(a)!");
+          navigate({ to: isBarber ? "/painel" : "/agendar", replace: true });
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : JSON.stringify(e);
+        console.error("[auth] Falha ao processar retorno do Google:", e);
+        if (active) setOAuthError(msg);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     if (mode !== "reset") return;
@@ -161,7 +199,9 @@ function AuthPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth?modo=${mode === "signup" ? "cadastro" : "login"}`,
+      },
     });
     if (error) {
       setBusy(false);
@@ -187,6 +227,15 @@ function AuthPage() {
               ? "Escolha uma nova senha para a sua conta."
               : "Enviaremos um link no seu e-mail para criar uma nova senha."}
       </p>
+
+      {oauthError ? (
+        <div className="mt-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+            <AlertTriangle className="size-4" /> Erro ao entrar com o Google
+          </div>
+          <p className="mt-1 text-sm text-foreground">{oauthError}</p>
+        </div>
+      ) : null}
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (
