@@ -158,7 +158,7 @@ function AuthPage() {
         if (password !== confirmPassword) {
           throw new Error("As senhas não conferem.");
         }
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -167,6 +167,11 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        if (!signUpData.session) {
+          toast.success("Conta criada! Confirme seu e-mail para entrar.");
+          setMode("login");
+          return;
+        }
         toast.success("Conta criada! Bem-vindo(a).");
         navigate({ to: "/agendar", replace: true });
         return;
