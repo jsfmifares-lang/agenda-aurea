@@ -8,13 +8,7 @@ export const Route = createFileRoute("/_authenticated")({
     if (error || !data.user) {
       console.error("[auth] getUser falhou:", error);
       await supabase.auth.signOut().catch(() => {});
-      throw redirect({
-        to: "/auth",
-        search: {
-          modo: "login",
-          err: error ? error.message : "Nenhuma sessão ativa",
-        },
-      });
+      throw redirect({ to: "/auth" });
     }
     return { user: data.user };
   },

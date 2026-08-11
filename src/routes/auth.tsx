@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 if (
@@ -59,7 +59,6 @@ export const Route = createFileRoute("/auth")({
         : search['modo'] === "recuperar"
           ? ("recuperar" as const)
           : ("login" as const),
-    err: typeof search['err'] === "string" ? search['err'] : undefined,
   }),
   head: () => ({
     meta: [
@@ -77,7 +76,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { modo, err } = Route.useSearch();
+  const { modo } = Route.useSearch();
   const [mode, setMode] = useState<AuthMode>(
     modo === "cadastro" ? "signup" : modo === "recuperar" ? "reset" : "login",
   );
@@ -88,7 +87,6 @@ function AuthPage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
-  const authError = err ?? null;
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
@@ -207,15 +205,6 @@ function AuthPage() {
               ? "Escolha uma nova senha para a sua conta."
               : "Enviaremos um link no seu e-mail para criar uma nova senha."}
       </p>
-
-      {authError ? (
-        <div className="mt-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-            <AlertTriangle className="size-4" /> Não foi possível continuar
-          </div>
-          <p className="mt-1 text-sm text-foreground">{authError}</p>
-        </div>
-      ) : null}
 
       <form onSubmit={submit} className="mt-8 space-y-3">
         {mode === "signup" ? (
