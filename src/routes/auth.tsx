@@ -4,6 +4,13 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+if (
+  typeof window !== "undefined" &&
+  window.location.hash.includes("access_token")
+) {
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
 type AuthMode = "login" | "signup" | "reset";
 
 const inputClass =
@@ -87,6 +94,18 @@ function AuthPage() {
     if (window.location.hash.includes("access_token")) {
       history.replaceState(null, "", window.location.pathname + window.location.search);
     }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return;
+      const { error } = await supabase.auth.getUser();
+      if (error) {
+        console.warn("[auth] Sessão quebrada encontrada, limpando:", error);
+        await supabase.auth.signOut().catch(() => {});
+      }
+    })();
   }, []);
 
   useEffect(() => {
