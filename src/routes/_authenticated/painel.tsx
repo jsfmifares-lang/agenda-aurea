@@ -6,7 +6,13 @@ import { Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { AppShell } from "@/components/AppShell";
-import { WEEKDAYS, formatDateLong, normalizeTime, type AvailabilityRow } from "@/lib/booking";
+import {
+  WEEKDAYS,
+  formatDateLong,
+  normalizeTime,
+  toMinutes,
+  type AvailabilityRow,
+} from "@/lib/booking";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
@@ -111,17 +117,39 @@ function Painel() {
 
   const upsertDay = async (weekday: number, patch: Partial<AvailabilityRow>) => {
     const existing = (availability.data ?? []).find((a) => a.weekday === weekday);
+    const start = patch.start_time ?? existing?.start_time ?? "09:00";
+    const end = patch.end_time ?? existing?.end_time ?? "18:00";
+    const lunchStart = patch.lunch_start !== undefined ? patch.lunch_start : existing?.lunch_start ?? null;
+    const lunchEnd = patch.lunch_end !== undefined ? patch.lunch_end : existing?.lunch_end ?? null;
+    if (toMinutes(end) <= toMinutes(start)) {
+      toast.error("Horário inválido: o fim deve ser após o início.");
+      return;
+    }
+    if (lunchStart && lunchEnd && toMinutes(lunchEnd) <= toMinutes(lunchStart)) {
+      toast.error("Almoço inválido: o fim deve ser após o início.");
+      return;
+    }
+    if (
+      lunchStart &&
+      lunchEnd &&
+      (toMinutes(lunchStart) < toMinutes(start) || toMinutes(lunchEnd) > toMinutes(end))
+    ) {
+      toast.error("Almoço inválido: deve ficar dentro do horário de trabalho.");
+      return;
+    }
     const payload = {
       weekday,
-      start_time: patch.start_time ?? existing?.start_time ?? "09:00",
-      end_time: patch.end_time ?? existing?.end_time ?? "18:00",
+      start_time: start,
+      end_time: end,
+      lunch_start: lunchStart,
+      lunch_end: lunchEnd,
       active: patch.active ?? existing?.active ?? true,
     };
     const { error } = existing
       ? await supabase.from("availability").update(payload).eq("id", existing.id)
       : await supabase.from("availability").insert(payload);
     if (error) {
-      toast.error("Horário inválido (fim deve ser após o início).");
+      toast.error("Não foi possível salvar esse dia.");
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ["availability-all"] });
@@ -205,32 +233,57 @@ function Painel() {
             const row = (availability.data ?? []).find((a) => a.weekday === weekday);
             const active = row?.active ?? false;
             return (
-              <div key={label} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={active}
-                    onChange={(e) => upsertDay(weekday, { active: e.target.checked })}
-                    className="size-4 accent-[oklch(0.78_0.13_82)]"
-                  />
-                  <span className="text-sm">{label}</span>
+              <div
+                key={label}
+                className="rounded-xl bg-secondary/60 p-3"
+              >
+                <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={(e) => upsertDay(weekday, { active: e.target.checked })}
+                      className="size-4 accent-[oklch(0.78_0.13_82)]"
+                    />
+                    <span className="text-sm">{label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      disabled={!active}
+                      value={normalizeTime(row?.start_time ?? "09:00")}
+                      onChange={(e) => upsertDay(weekday, { start_time: e.target.value })}
+                      className={`${inputClass} w-27 disabled:opacity-40`}
+                    />
+                    <span className="text-muted-foreground">—</span>
+                    <input
+                      type="time"
+                      disabled={!active}
+                      value={normalizeTime(row?.end_time ?? "18:00")}
+                      onChange={(e) => upsertDay(weekday, { end_time: e.target.value })}
+                      className={`${inputClass} w-27 disabled:opacity-40`}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    disabled={!active}
-                    value={normalizeTime(row?.start_time ?? "09:00")}
-                    onChange={(e) => upsertDay(weekday, { start_time: e.target.value })}
-                    className={`${inputClass} w-27 disabled:opacity-40`}
-                  />
-                  <span className="text-muted-foreground">—</span>
-                  <input
-                    type="time"
-                    disabled={!active}
-                    value={normalizeTime(row?.end_time ?? "18:00")}
-                    onChange={(e) => upsertDay(weekday, { end_time: e.target.value })}
-                    className={`${inputClass} w-27 disabled:opacity-40`}
-                  />
+                <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-3 pl-7">
+                  <span className="text-xs text-muted-foreground">Almoço</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      disabled={!active}
+                      value={normalizeTime(row?.lunch_start ?? "")}
+                      onChange={(e) => upsertDay(weekday, { lunch_start: e.target.value || null })}
+                      className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
+                    />
+                    <span className="text-muted-foreground">—</span>
+                    <input
+                      type="time"
+                      disabled={!active}
+                      value={normalizeTime(row?.lunch_end ?? "")}
+                      onChange={(e) => upsertDay(weekday, { lunch_end: e.target.value || null })}
+                      className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
+                    />
+                  </div>
                 </div>
               </div>
             );

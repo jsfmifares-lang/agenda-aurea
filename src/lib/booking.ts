@@ -13,6 +13,8 @@ export type AvailabilityRow = {
   weekday: number;
   start_time: string;
   end_time: string;
+  lunch_start: string | null;
+  lunch_end: string | null;
   active: boolean;
 };
 
@@ -56,7 +58,17 @@ export function buildSlots(
     if (!rule.active || rule.weekday !== weekday) continue;
     const start = toMinutes(rule.start_time);
     const end = toMinutes(rule.end_time);
+    const lunchStart = rule.lunch_start ? toMinutes(rule.lunch_start) : null;
+    const lunchEnd = rule.lunch_end ? toMinutes(rule.lunch_end) : null;
     for (let t = start; t + slotMinutes <= end; t += slotMinutes) {
+      if (
+        lunchStart !== null &&
+        lunchEnd !== null &&
+        t < lunchEnd &&
+        t + slotMinutes > lunchStart
+      ) {
+        continue;
+      }
       const label = toTimeLabel(t);
       if (!slots.includes(label)) slots.push(label);
     }

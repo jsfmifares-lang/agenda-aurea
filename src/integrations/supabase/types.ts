@@ -70,6 +70,8 @@ export type Database = {
           created_at: string
           end_time: string
           id: string
+          lunch_start: string | null
+          lunch_end: string | null
           start_time: string
           weekday: number
         }
@@ -78,6 +80,8 @@ export type Database = {
           created_at?: string
           end_time: string
           id?: string
+          lunch_start?: string | null
+          lunch_end?: string | null
           start_time: string
           weekday: number
         }
@@ -86,6 +90,8 @@ export type Database = {
           created_at?: string
           end_time?: string
           id?: string
+          lunch_start?: string | null
+          lunch_end?: string | null
           start_time?: string
           weekday?: number
         }
