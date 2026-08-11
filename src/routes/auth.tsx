@@ -81,55 +81,13 @@ function AuthPage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
-  const [oauthError, setOAuthError] = useState<string | null>(err ?? null);
+  const authError = err ?? null;
 
   useEffect(() => {
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const accessToken = hash.get("access_token");
-    const refreshToken = hash.get("refresh_token");
-    if (!accessToken || !refreshToken) return;
-    let active = true;
-    (async () => {
-      let step = "getSession";
-      try {
-        let session = (await supabase.auth.getSession()).data.session;
-        if (!session?.user) {
-          step = "setSession";
-          console.log("[auth] OAuth: tentando setSession com token", accessToken.slice(0, 20) + "...");
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error || !data.session?.user) {
-            throw error ?? new Error("Sessão inválida retornada pelo Google.");
-          }
-          session = data.session;
-        }
-        step = "roles";
-        const { data: roles, error: rolesErr } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
-        if (rolesErr) throw rolesErr;
-        const isBarber = (roles ?? []).some((r) => r.role === "barber");
-        if (active) {
-          toast.success(isBarber ? "Bem-vindo(a), barbeiro(a)!" : "Bem-vindo(a)!");
-          navigate({ to: isBarber ? "/painel" : "/agendar", replace: true });
-        }
-      } catch (e) {
-        const err = e as Error & { code?: unknown; status?: unknown };
-        console.error(`[auth] Falha em "${step}":`, e);
-        const details =
-          (typeof err?.status !== "undefined" ? ` (status: ${err.status})` : "") +
-          (typeof err?.code !== "undefined" ? ` (code: ${err.code})` : "");
-        const msg = err?.message ?? JSON.stringify(e);
-        if (active) setOAuthError(`[${step}] ${msg}${details}`);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
+    if (window.location.hash.includes("access_token")) {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
 
   useEffect(() => {
     if (mode !== "reset") return;
@@ -231,12 +189,12 @@ function AuthPage() {
               : "Enviaremos um link no seu e-mail para criar uma nova senha."}
       </p>
 
-      {oauthError ? (
+      {authError ? (
         <div className="mt-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-            <AlertTriangle className="size-4" /> Erro ao entrar com o Google
+            <AlertTriangle className="size-4" /> Não foi possível continuar
           </div>
-          <p className="mt-1 text-sm text-foreground">{oauthError}</p>
+          <p className="mt-1 text-sm text-foreground">{authError}</p>
         </div>
       ) : null}
 
