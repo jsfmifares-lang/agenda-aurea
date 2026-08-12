@@ -40,3 +40,31 @@ self.addEventListener("fetch", (e) => {
       .catch(() => caches.match(req)),
   );
 });
+
+// Push notifications
+self.addEventListener("push", (e) => {
+  if (!e.data) return;
+  const data = e.data.json();
+  e.waitUntil(
+    self.registration.showNotification(data.title || "Agenda Aurea", {
+      body: data.body || "",
+      icon: data.icon || "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/painel" },
+      actions: [{ action: "open", title: "Abrir" }],
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/painel";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.includes(url) && "focus" in client) return client.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

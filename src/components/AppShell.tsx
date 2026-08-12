@@ -1,7 +1,8 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { CalendarPlus, CalendarDays, Scissors, LogOut } from "lucide-react";
+import { CalendarPlus, CalendarDays, Scissors, LogOut, Bell, BellOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 type Props = {
   title: string;
@@ -13,6 +14,7 @@ type Props = {
 export function AppShell({ title, subtitle, isBarber, children }: Props) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isSubscribed, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
 
   const items = [
     { to: "/agendar", label: "Agendar", icon: CalendarPlus },
@@ -25,6 +27,14 @@ export function AppShell({ title, subtitle, isBarber, children }: Props) {
     navigate({ to: "/auth", replace: true });
   };
 
+  const toggleNotifications = async () => {
+    if (isSubscribed) {
+      await unsubscribe();
+    } else {
+      await subscribe();
+    }
+  };
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col overflow-x-hidden bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 px-5 pb-4 pt-6 backdrop-blur">
@@ -35,13 +45,25 @@ export function AppShell({ title, subtitle, isBarber, children }: Props) {
               <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
-          <button
-            onClick={signOut}
-            aria-label="Sair"
-            className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <LogOut className="size-4" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={toggleNotifications}
+              disabled={pushLoading}
+              aria-label={isSubscribed ? "Desativar notificações" : "Ativar notificações"}
+              className={`rounded-full border border-border p-2 transition-colors ${
+                isSubscribed ? "text-primary border-primary/50" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {isSubscribed ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+            </button>
+            <button
+              onClick={signOut}
+              aria-label="Sair"
+              className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
         </div>
       </header>
 
