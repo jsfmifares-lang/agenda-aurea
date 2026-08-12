@@ -118,10 +118,13 @@ function Painel() {
 
   const upsertDay = async (weekday: number, patch: Partial<AvailabilityRow>) => {
     const existing = (availability.data ?? []).find((a) => a.weekday === weekday);
-    const start = patch.start_time ?? existing?.start_time ?? "09:00";
-    const end = patch.end_time ?? existing?.end_time ?? "18:00";
-    const lunchStart = patch.lunch_start !== undefined ? patch.lunch_start : existing?.lunch_start ?? null;
-    const lunchEnd = patch.lunch_end !== undefined ? patch.lunch_end : existing?.lunch_end ?? null;
+    const start = patch.start_time?.trim() ? patch.start_time : existing?.start_time ?? "09:00";
+    const end = patch.end_time?.trim() ? patch.end_time : existing?.end_time ?? "18:00";
+    const lunchStart =
+      (patch.lunch_start !== undefined ? patch.lunch_start : existing?.lunch_start ?? null) ||
+      null;
+    const lunchEnd =
+      (patch.lunch_end !== undefined ? patch.lunch_end : existing?.lunch_end ?? null) || null;
     if (toMinutes(end) <= toMinutes(start)) {
       toast.error("Horário inválido: o fim deve ser após o início.");
       return;
@@ -150,7 +153,9 @@ function Painel() {
       ? await supabase.from("availability").update(payload).eq("id", existing.id)
       : await supabase.from("availability").insert(payload);
     if (error) {
-      toast.error("Não foi possível salvar esse dia.");
+      toast.error(
+        "Não foi possível salvar esse dia: " + (error.message ?? JSON.stringify(error)),
+      );
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ["availability-all"] });
