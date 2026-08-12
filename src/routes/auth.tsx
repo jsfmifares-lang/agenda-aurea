@@ -165,19 +165,17 @@ function AuthPage() {
         if (!loginName.trim()) {
           throw new Error("Digite seu nome.");
         }
-        const { data: profiles, error: profileError } = await supabase
-          .from("profiles")
-          .select("email")
-          .ilike("full_name", loginName.trim())
-          .limit(2);
-        if (profileError) throw profileError;
-        if (!profiles || profiles.length === 0) {
+        const { data: results, error: rpcError } = await supabase.rpc("lookup_email_by_name", {
+          search_name: loginName.trim(),
+        });
+        if (rpcError) throw rpcError;
+        if (!results || results.length === 0) {
           throw new Error("Nenhum usuário encontrado com esse nome.");
         }
-        if (profiles.length > 1) {
+        if (results.length > 1) {
           throw new Error("Mais de um usuário com esse nome. Use o e-mail para entrar.");
         }
-        const userEmail = profiles[0]?.email;
+        const userEmail = results[0]?.email;
         if (!userEmail) {
           throw new Error("E-mail não encontrado para esse usuário.");
         }
