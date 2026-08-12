@@ -1,4 +1,4 @@
-const CACHE = "agenda-aurea-v2";
+const CACHE = "agenda-aurea-v3";
 const STATIC = ["/", "/images/app-icon.png", "/favicon.png"];
 
 self.addEventListener("install", (e) => {
@@ -28,28 +28,15 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  if (req.mode === "navigate") {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put("/", copy));
-          return res;
-        })
-        .catch(() => caches.match("/")),
-    );
-    return;
-  }
-
   e.respondWith(
-    caches.match(req).then(
-      (cached) =>
-        cached ||
-        fetch(req).then((res) => {
+    fetch(req)
+      .then((res) => {
+        if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-          return res;
-        }),
-    ),
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => caches.match(req)),
   );
 });
