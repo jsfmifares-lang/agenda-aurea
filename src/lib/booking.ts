@@ -13,8 +13,8 @@ export type AvailabilityRow = {
   weekday: number;
   start_time: string;
   end_time: string;
-  lunch_start: string | null;
-  lunch_end: string | null;
+  period2_start: string | null;
+  period2_end: string | null;
   active: boolean;
 };
 
@@ -56,21 +56,20 @@ export function buildSlots(
   const slots: string[] = [];
   for (const rule of rules) {
     if (!rule.active || rule.weekday !== weekday) continue;
-    const start = toMinutes(rule.start_time);
-    const end = toMinutes(rule.end_time);
-    const lunchStart = rule.lunch_start ? toMinutes(rule.lunch_start) : null;
-    const lunchEnd = rule.lunch_end ? toMinutes(rule.lunch_end) : null;
-    for (let t = start; t + slotMinutes <= end; t += slotMinutes) {
-      if (
-        lunchStart !== null &&
-        lunchEnd !== null &&
-        t < lunchEnd &&
-        t + slotMinutes > lunchStart
-      ) {
-        continue;
+    const periods: Array<[number, number]> = [];
+    const period1Start = toMinutes(rule.start_time);
+    const period1End = toMinutes(rule.end_time);
+    if (period1End > period1Start) periods.push([period1Start, period1End]);
+    if (rule.period2_start && rule.period2_end) {
+      const period2Start = toMinutes(rule.period2_start);
+      const period2End = toMinutes(rule.period2_end);
+      if (period2End > period2Start) periods.push([period2Start, period2End]);
+    }
+    for (const [start, end] of periods) {
+      for (let t = start; t + slotMinutes <= end; t += slotMinutes) {
+        const label = toTimeLabel(t);
+        if (!slots.includes(label)) slots.push(label);
       }
-      const label = toTimeLabel(t);
-      if (!slots.includes(label)) slots.push(label);
     }
   }
   return slots.sort();

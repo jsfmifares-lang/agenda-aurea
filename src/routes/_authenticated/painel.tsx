@@ -42,7 +42,7 @@ function Painel() {
   const [whatsapp, setWhatsapp] = useState("");
   const [slotMinutes, setSlotMinutes] = useState(30);
   const [blockDate, setBlockDate] = useState("");
-  const [defaultLunch, setDefaultLunch] = useState("none");
+  const [defaultTemplate, setDefaultTemplate] = useState("08:00-12:00|14:00-22:00");
 
   const settings = useQuery({
     queryKey: ["settings"],
@@ -120,33 +120,35 @@ function Painel() {
     const existing = (availability.data ?? []).find((a) => a.weekday === weekday);
     const start = patch.start_time?.trim() ? patch.start_time : existing?.start_time ?? "09:00";
     const end = patch.end_time?.trim() ? patch.end_time : existing?.end_time ?? "18:00";
-    const lunchStart =
-      (patch.lunch_start !== undefined ? patch.lunch_start : existing?.lunch_start ?? null) ||
+    const period2Start =
+      (patch.period2_start !== undefined
+        ? patch.period2_start
+        : existing?.period2_start ?? null) || null;
+    const period2End =
+      (patch.period2_end !== undefined ? patch.period2_end : existing?.period2_end ?? null) ||
       null;
-    const lunchEnd =
-      (patch.lunch_end !== undefined ? patch.lunch_end : existing?.lunch_end ?? null) || null;
     if (toMinutes(end) <= toMinutes(start)) {
-      toast.error("Horário inválido: o fim deve ser após o início.");
+      toast.error("1º período inválido: o fim deve ser após o início.");
       return;
     }
-    if (lunchStart && lunchEnd && toMinutes(lunchEnd) <= toMinutes(lunchStart)) {
-      toast.error("Almoço inválido: o fim deve ser após o início.");
+    if (period2Start && period2End && toMinutes(period2End) <= toMinutes(period2Start)) {
+      toast.error("2º período inválido: o fim deve ser após o início.");
       return;
     }
     if (
-      lunchStart &&
-      lunchEnd &&
-      (toMinutes(lunchStart) < toMinutes(start) || toMinutes(lunchEnd) > toMinutes(end))
+      period2Start &&
+      period2End &&
+      toMinutes(period2Start) < toMinutes(end)
     ) {
-      toast.error("Almoço inválido: deve ficar dentro do horário de trabalho.");
+      toast.error("2º período deve começar após o fim do 1º período.");
       return;
     }
     const payload = {
       weekday,
       start_time: start,
       end_time: end,
-      lunch_start: lunchStart,
-      lunch_end: lunchEnd,
+      period2_start: period2Start,
+      period2_end: period2End,
       active: patch.active ?? existing?.active ?? true,
     };
     const { error } = existing
@@ -162,18 +164,19 @@ function Painel() {
     await queryClient.invalidateQueries({ queryKey: ["booking-base"] });
   };
 
-  const applyDefaultLunch = async () => {
-    let start: string | null = null;
-    let end: string | null = null;
-    if (defaultLunch !== "none") {
-      const [s, e] = defaultLunch.split("-");
-      start = s ?? null;
-      end = e ?? null;
-    }
+  const applyDefaultTemplate = async () => {
+    const [period1, period2] = defaultTemplate.split("|");
+    const [p1Start, p1End] = (period1 ?? "08:00-12:00").split("-");
+    const [p2Start, p2End] = period2 ? period2.split("-") : [null, null];
     for (const [, weekday] of WEEKDAYS.entries()) {
-      await upsertDay(weekday, { lunch_start: start, lunch_end: end });
+      await upsertDay(weekday, {
+        start_time: p1Start ?? "08:00",
+        end_time: p1End ?? "12:00",
+        period2_start: p2Start ?? null,
+        period2_end: p2End ?? null,
+      });
     }
-    toast.success("Almoço padrão aplicado a todos os dias.");
+    toast.success("Horários padrão aplicados a todos os dias.");
   };
 
   const addBlocked = async () => {
@@ -250,20 +253,20 @@ function Painel() {
         <h2 className="text-lg font-semibold">Dias e horários</h2>
 
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
-          <span className="text-xs text-muted-foreground">Almoço padrão</span>
+          <span className="text-xs text-muted-foreground">Horários padrão</span>
           <select
-            className={`${inputClass} min-w-36 flex-1`}
-            value={defaultLunch}
-            onChange={(e) => setDefaultLunch(e.target.value)}
+            className={`${inputClass} min-w-48 flex-1`}
+            value={defaultTemplate}
+            onChange={(e) => setDefaultTemplate(e.target.value)}
           >
-            <option value="none">Sem almoço</option>
-            <option value="11:30-13:00">11:30 — 13:00</option>
-            <option value="12:00-13:00">12:00 — 13:00</option>
-            <option value="12:00-13:30">12:00 — 13:30</option>
-            <option value="12:30-14:00">12:30 — 14:00</option>
+            <option value="08:00-12:00|14:00-22:00">08:00–12:00 + 14:00–22:00</option>
+            <option value="09:00-12:00|14:00-18:00">09:00–12:00 + 14:00–18:00</option>
+            <option value="08:00-12:00|13:00-18:00">08:00–12:00 + 13:00–18:00</option>
+            <option value="10:00-12:00|16:00-20:00">10:00–12:00 + 16:00–20:00</option>
+            <option value="08:00-18:00">Dia inteiro (08:00–18:00)</option>
           </select>
           <button
-            onClick={applyDefaultLunch}
+            onClick={applyDefaultTemplate}
             className="h-11 rounded-xl border border-primary px-4 text-sm text-primary"
           >
             Aplicar a todos
@@ -308,21 +311,43 @@ function Painel() {
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-3 pl-7">
-                  <span className="text-xs text-muted-foreground">Almoço</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!row?.period2_start && !!row?.period2_end}
+                      disabled={!active}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          upsertDay(weekday, {
+                            period2_start: row?.period2_start || "14:00",
+                            period2_end: row?.period2_end || "18:00",
+                          });
+                        } else {
+                          upsertDay(weekday, { period2_start: null, period2_end: null });
+                        }
+                      }}
+                      className="size-4 accent-[oklch(0.78_0.13_82)] disabled:opacity-40"
+                    />
+                    <span className="text-xs text-muted-foreground">2º período</span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="time"
-                      disabled={!active}
-                      value={normalizeTime(row?.lunch_start ?? "")}
-                      onChange={(e) => upsertDay(weekday, { lunch_start: e.target.value || null })}
+                      disabled={!active || (!row?.period2_start && !row?.period2_end)}
+                      value={normalizeTime(row?.period2_start ?? "")}
+                      onChange={(e) =>
+                        upsertDay(weekday, { period2_start: e.target.value || null })
+                      }
                       className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
                     />
                     <span className="text-muted-foreground">—</span>
                     <input
                       type="time"
-                      disabled={!active}
-                      value={normalizeTime(row?.lunch_end ?? "")}
-                      onChange={(e) => upsertDay(weekday, { lunch_end: e.target.value || null })}
+                      disabled={!active || (!row?.period2_start && !row?.period2_end)}
+                      value={normalizeTime(row?.period2_end ?? "")}
+                      onChange={(e) =>
+                        upsertDay(weekday, { period2_end: e.target.value || null })
+                      }
                       className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
                     />
                   </div>
