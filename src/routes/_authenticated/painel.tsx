@@ -255,7 +255,7 @@ function Painel() {
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
           <span className="text-xs text-muted-foreground">Horários padrão</span>
           <select
-            className={`${inputClass} min-w-48 flex-1`}
+            className={`${inputClass} min-w-0 flex-1`}
             value={defaultTemplate}
             onChange={(e) => setDefaultTemplate(e.target.value)}
           >
@@ -282,23 +282,23 @@ function Painel() {
                 key={label}
                 className="rounded-xl border border-border/70 p-3"
               >
-                <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={active}
                       onChange={(e) => upsertDay(weekday, { active: e.target.checked })}
                       className="size-4 accent-[oklch(0.78_0.13_82)]"
                     />
-                    <span className="text-sm">{label}</span>
+                    <span className="min-w-16 text-sm">{label}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-1 items-center justify-end gap-1">
                     <input
                       type="time"
                       disabled={!active}
                       value={normalizeTime(row?.start_time ?? "09:00")}
                       onChange={(e) => upsertDay(weekday, { start_time: e.target.value })}
-                      className={`${inputClass} w-27 disabled:opacity-40`}
+                      className={`${inputClass} w-20 sm:w-27 disabled:opacity-40`}
                     />
                     <span className="text-muted-foreground">—</span>
                     <input
@@ -306,11 +306,11 @@ function Painel() {
                       disabled={!active}
                       value={normalizeTime(row?.end_time ?? "18:00")}
                       onChange={(e) => upsertDay(weekday, { end_time: e.target.value })}
-                      className={`${inputClass} w-27 disabled:opacity-40`}
+                      className={`${inputClass} w-20 sm:w-27 disabled:opacity-40`}
                     />
                   </div>
                 </div>
-                <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-3 pl-7">
+                <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -328,9 +328,9 @@ function Painel() {
                       }}
                       className="size-4 accent-[oklch(0.78_0.13_82)] disabled:opacity-40"
                     />
-                    <span className="text-xs text-muted-foreground">2º período</span>
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">2º período</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-1 items-center justify-end gap-1">
                     <input
                       type="time"
                       disabled={!active || (!row?.period2_start && !row?.period2_end)}
@@ -338,7 +338,7 @@ function Painel() {
                       onChange={(e) =>
                         upsertDay(weekday, { period2_start: e.target.value || null })
                       }
-                      className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
+                      className={`${inputClass} w-20 py-1.5 text-xs disabled:opacity-40 sm:w-27`}
                     />
                     <span className="text-muted-foreground">—</span>
                     <input
@@ -348,7 +348,7 @@ function Painel() {
                       onChange={(e) =>
                         upsertDay(weekday, { period2_end: e.target.value || null })
                       }
-                      className={`${inputClass} w-27 py-1.5 text-xs disabled:opacity-40`}
+                      className={`${inputClass} w-20 py-1.5 text-xs disabled:opacity-40 sm:w-27`}
                     />
                   </div>
                 </div>

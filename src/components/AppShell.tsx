@@ -26,7 +26,7 @@ export function AppShell({ title, subtitle, isBarber, children }: Props) {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col bg-background">
+    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col overflow-x-hidden bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 px-5 pb-4 pt-6 backdrop-blur">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -45,7 +45,7 @@ export function AppShell({ title, subtitle, isBarber, children }: Props) {
         </div>
       </header>
 
-      <main className="flex-1 px-5 pb-28 pt-5">{children}</main>
+      <main className="flex-1 overflow-hidden px-5 pb-28 pt-5">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-lg border-t border-border bg-card/95 backdrop-blur">
         <ul className="flex">
