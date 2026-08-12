@@ -28,6 +28,11 @@ function buildTimes(open: string, close: string, intervalMinutes: number): strin
 export type TimeslotsProps = {
   value?: string | null;
   onChange?: (time: string) => void;
+  slots?: string[];
+  disabledTimes?: string[];
+  hideConfig?: boolean;
+  disabled?: boolean;
+  title?: string | null;
   defaultOpen?: string;
   defaultClose?: string;
   defaultInterval?: number;
@@ -39,10 +44,17 @@ const fieldClass =
 const slotClass =
   "h-11 rounded-xl border border-transparent bg-sky-100 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-200";
 const slotSelectedClass = "bg-sky-600 text-white hover:bg-sky-600";
+const slotDisabledClass =
+  "border-border bg-muted text-muted-foreground line-through opacity-60";
 
 export function Timeslots({
   value,
   onChange,
+  slots: externalSlots,
+  disabledTimes = [],
+  hideConfig = false,
+  disabled = false,
+  title = "Timeslots Example",
   defaultOpen = "09:00",
   defaultClose = "16:00",
   defaultInterval = 45,
@@ -54,7 +66,7 @@ export function Timeslots({
   const [internalSelected, setInternalSelected] = useState<string | null>(defaultSelected);
 
   const selected = value !== undefined ? value : internalSelected;
-  const slots = buildTimes(open, close, interval);
+  const slots = externalSlots ?? buildTimes(open, close, interval);
 
   const select = (time: string) => {
     setInternalSelected(time);
@@ -63,49 +75,57 @@ export function Timeslots({
 
   return (
     <div className="mx-auto w-full max-w-lg">
-      <h2 className="text-xl font-semibold text-gradient-gold">Timeslots Example</h2>
+      {title !== null ? (
+        <h2 className="text-xl font-semibold text-gradient-gold">{title}</h2>
+      ) : null}
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Open at
-          <input
-            type="time"
-            className={fieldClass}
-            value={open}
-            onChange={(e) => setOpen(e.target.value)}
-          />
-        </label>
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Closes at
-          <input
-            type="time"
-            className={fieldClass}
-            value={close}
-            onChange={(e) => setClose(e.target.value)}
-          />
-        </label>
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Interval (minutes)
-          <input
-            type="number"
-            min={5}
-            step={5}
-            className={fieldClass}
-            value={interval}
-            onChange={(e) => setInterval(Number(e.target.value))}
-          />
-        </label>
-      </div>
+      {hideConfig ? null : (
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          <label className="grid gap-1 text-xs text-muted-foreground">
+            Open at
+            <input
+              type="time"
+              className={fieldClass}
+              value={open}
+              onChange={(e) => setOpen(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-xs text-muted-foreground">
+            Closes at
+            <input
+              type="time"
+              className={fieldClass}
+              value={close}
+              onChange={(e) => setClose(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-xs text-muted-foreground">
+            Interval (minutes)
+            <input
+              type="number"
+              min={5}
+              step={5}
+              className={fieldClass}
+              value={interval}
+              onChange={(e) => setInterval(Number(e.target.value))}
+            />
+          </label>
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
         {slots.map((time) => {
           const isSelected = selected === time;
+          const isDisabled = disabled || disabledTimes.includes(time);
           return (
             <button
               key={time}
               type="button"
+              disabled={isDisabled}
               onClick={() => select(time)}
-              className={`${slotClass} ${isSelected ? slotSelectedClass : ""}`}
+              className={`${slotClass} ${
+                isSelected ? slotSelectedClass : ""
+              } ${isDisabled ? slotDisabledClass : ""}`}
             >
               {time}
             </button>
@@ -113,9 +133,12 @@ export function Timeslots({
         })}
       </div>
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        Horário selecionado: <span className="font-semibold text-foreground">{selected ?? "—"}</span>
-      </p>
+      {hideConfig ? null : (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Horário selecionado:{" "}
+          <span className="font-semibold text-foreground">{selected ?? "—"}</span>
+        </p>
+      )}
     </div>
   );
 }

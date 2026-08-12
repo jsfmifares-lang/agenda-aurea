@@ -6,6 +6,7 @@ import { Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { AppShell } from "@/components/AppShell";
+import { Timeslots } from "@/components/Timeslots";
 import {
   buildSlots,
   confirmationMessage,
@@ -78,6 +79,13 @@ function AgendarPage() {
   const slots = base.data ? buildSlots(base.data.availability, weekday, slotMinutes) : [];
   const nowKey = new Date();
   const isToday = selectedDate === nextDays(1)[0];
+  const takenList = taken.data ?? [];
+  const disabledTimes = slots.filter((slot) => {
+    if (takenList.includes(slot)) return true;
+    if (!isToday) return false;
+    const [h, m] = slot.split(":").map(Number);
+    return h * 60 + m <= nowKey.getHours() * 60 + nowKey.getMinutes();
+  });
 
   const book = async (time: string) => {
     if (!user) return;
@@ -196,33 +204,17 @@ function AgendarPage() {
             Nenhum horário definido para este dia.
           </p>
         ) : (
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {slots.map((slot) => {
-              const busy = (taken.data ?? []).includes(slot);
-              const past =
-                isToday &&
-                Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5)) <=
-                  nowKey.getHours() * 60 + nowKey.getMinutes();
-              const disabled = busy || past || saving !== null;
-              return (
-                <button
-                  key={slot}
-                  disabled={disabled}
-                  onClick={() => book(slot)}
-                  className={`h-12 rounded-xl border text-sm font-medium transition-colors ${
-                    disabled
-                      ? "border-border bg-muted text-muted-foreground line-through opacity-60"
-                      : "border-primary/40 bg-card text-foreground hover:border-primary hover:text-primary"
-                  }`}
-                >
-                  {saving === slot ? (
-                    <Loader2 className="mx-auto size-4 animate-spin" />
-                  ) : (
-                    slot
-                  )}
-                </button>
-              );
-            })}
+          <div className="mt-4">
+            <Timeslots
+              slots={slots}
+              disabledTimes={disabledTimes}
+              disabled={saving !== null}
+              title={null}
+              hideConfig
+              onChange={(time) => {
+                void book(time);
+              }}
+            />
           </div>
         )}
       </div>
