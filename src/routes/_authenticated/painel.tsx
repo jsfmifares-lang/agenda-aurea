@@ -42,6 +42,7 @@ function Painel() {
   const [whatsapp, setWhatsapp] = useState("");
   const [slotMinutes, setSlotMinutes] = useState(30);
   const [blockDate, setBlockDate] = useState("");
+  const [defaultLunch, setDefaultLunch] = useState("none");
 
   const settings = useQuery({
     queryKey: ["settings"],
@@ -156,6 +157,20 @@ function Painel() {
     await queryClient.invalidateQueries({ queryKey: ["booking-base"] });
   };
 
+  const applyDefaultLunch = async () => {
+    let start: string | null = null;
+    let end: string | null = null;
+    if (defaultLunch !== "none") {
+      const [s, e] = defaultLunch.split("-");
+      start = s ?? null;
+      end = e ?? null;
+    }
+    for (const [, weekday] of WEEKDAYS.entries()) {
+      await upsertDay(weekday, { lunch_start: start, lunch_end: end });
+    }
+    toast.success("Almoço padrão aplicado a todos os dias.");
+  };
+
   const addBlocked = async () => {
     if (!blockDate) return;
     const { error } = await supabase.from("blocked_dates").insert({ date: blockDate });
@@ -228,6 +243,28 @@ function Painel() {
 
       <section className="mt-5 surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">Dias e horários</h2>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+          <span className="text-xs text-muted-foreground">Almoço padrão</span>
+          <select
+            className={`${inputClass} min-w-36 flex-1`}
+            value={defaultLunch}
+            onChange={(e) => setDefaultLunch(e.target.value)}
+          >
+            <option value="none">Sem almoço</option>
+            <option value="11:30-13:00">11:30 — 13:00</option>
+            <option value="12:00-13:00">12:00 — 13:00</option>
+            <option value="12:00-13:30">12:00 — 13:30</option>
+            <option value="12:30-14:00">12:30 — 14:00</option>
+          </select>
+          <button
+            onClick={applyDefaultLunch}
+            className="h-11 rounded-xl border border-primary px-4 text-sm text-primary"
+          >
+            Aplicar a todos
+          </button>
+        </div>
+
         <div className="mt-4 space-y-3">
           {WEEKDAYS.map((label, weekday) => {
             const row = (availability.data ?? []).find((a) => a.weekday === weekday);
@@ -235,7 +272,7 @@ function Painel() {
             return (
               <div
                 key={label}
-                className="rounded-xl bg-secondary/60 p-3"
+                className="rounded-xl border border-border/70 p-3"
               >
                 <div className="grid grid-cols-[1fr_auto] items-center gap-3">
                   <div className="flex items-center gap-3">
