@@ -81,6 +81,7 @@ function AuthPage() {
     modo === "cadastro" ? "signup" : modo === "recuperar" ? "reset" : "login",
   );
   const [email, setEmail] = useState("");
+  const [loginName, setLoginName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -142,6 +143,14 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        if (signUpData.user) {
+          await supabase.from("profiles").upsert({
+            id: signUpData.user.id,
+            email: email,
+            full_name: fullName,
+            phone,
+          });
+        }
         if (!signUpData.session) {
           toast.success("Conta criada! Confirme seu e-mail para entrar.");
           setMode("login");
@@ -153,7 +162,26 @@ function AuthPage() {
       }
 
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!loginName.trim()) {
+          throw new Error("Digite seu nome.");
+        }
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("email")
+          .ilike("full_name", loginName.trim())
+          .limit(2);
+        if (profileError) throw profileError;
+        if (!profiles || profiles.length === 0) {
+          throw new Error("Nenhum usuário encontrado com esse nome.");
+        }
+        if (profiles.length > 1) {
+          throw new Error("Mais de um usuário com esse nome. Use o e-mail para entrar.");
+        }
+        const userEmail = profiles[0]?.email;
+        if (!userEmail) {
+          throw new Error("E-mail não encontrado para esse usuário.");
+        }
+        const { error } = await supabase.auth.signInWithPassword({ email: userEmail, password });
         if (error) throw error;
         navigate({ to: "/agendar", replace: true });
         return;
@@ -228,14 +256,24 @@ function AuthPage() {
         ) : null}
 
         {!(mode === "reset" && isRecovery) ? (
-          <input
-            className={inputClass}
-            type="email"
-            placeholder="E-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          mode === "login" ? (
+            <input
+              className={inputClass}
+              placeholder="Seu nome"
+              value={loginName}
+              onChange={(e) => setLoginName(e.target.value)}
+              required
+            />
+          ) : (
+            <input
+              className={inputClass}
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          )
         ) : null}
 
         {mode !== "reset" || isRecovery ? (
