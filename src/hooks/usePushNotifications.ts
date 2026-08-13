@@ -38,34 +38,40 @@ export function usePushNotifications() {
   };
 
   const subscribe = useCallback(async () => {
-    if (!VAPID_PUBLIC_KEY || !("serviceWorker" in navigator) || !("Notification" in window)) return false;
+    if (!VAPID_PUBLIC_KEY) { alert("VAPID key missing"); return false; }
+    if (!("serviceWorker" in navigator)) { alert("No serviceWorker"); return false; }
+    if (!("Notification" in window)) { alert("No Notification API"); return false; }
     setLoading(true);
     try {
       const result = await Notification.requestPermission();
       setPermission(result);
-      if (result !== "granted") { setLoading(false); return false; }
+      if (result !== "granted") { alert(`Permission: ${result}`); setLoading(false); return false; }
 
       const reg = await navigator.serviceWorker.ready;
+      alert(`SW ready, scope: ${reg.scope}`);
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
+      alert(`Push subscribed: ${sub.endpoint.substring(0, 50)}`);
 
       const { endpoint } = sub;
       const p256dh = btoa(String.fromCharCode(...new Uint8Array(sub.getKey("p256dh")!)));
       const auth = btoa(String.fromCharCode(...new Uint8Array(sub.getKey("auth")!)));
 
-      await supabase.rpc("register_push_subscription", {
+      const { error } = await supabase.rpc("register_push_subscription", {
         p_endpoint: endpoint,
         p_p256dh: p256dh,
         p_auth: auth,
       });
+      if (error) alert(`RPC error: ${error.message}`);
 
       setIsSubscribed(true);
       setLoading(false);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Push subscribe error:", err);
+      alert(`Push error: ${err.message}`);
       setLoading(false);
       return false;
     }

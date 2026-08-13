@@ -28,10 +28,12 @@ export function AppShell({ title, subtitle, isBarber, children }: Props) {
   };
 
   const toggleNotifications = async () => {
+    alert(`isSubscribed: ${isSubscribed}, loading: ${pushLoading}`);
     if (isSubscribed) {
       await unsubscribe();
     } else {
-      await subscribe();
+      const result = await subscribe();
+      alert(`subscribe result: ${result}`);
     }
   };
 
